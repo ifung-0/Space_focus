@@ -18,6 +18,7 @@
             --text-secondary: #a0a0a0;
             --success-color: #4ade80;
             --border-color: rgba(255, 255, 255, 0.1);
+            --loader-color: #00ff9d;
         }
 
         [data-theme="dark"] {
@@ -513,13 +514,19 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 20px;
             transition: transform 0.4s ease, opacity 0.4s ease;
         }
 
         .top-bar-timer.hidden {
             transform: translateX(-50%) translateY(-120%);
             opacity: 0;
+        }
+
+        .timer-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         .timer-display-large {
@@ -529,6 +536,15 @@
             color: var(--focus-color);
             min-width: 80px;
             text-align: center;
+        }
+
+        .clock-display {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-left: 1px solid var(--border-color);
+            padding-left: 15px;
+            white-space: nowrap;
         }
 
         .timer-btn-small {
@@ -676,9 +692,15 @@
         .notification.info { border-left: 3px solid var(--secondary-color); }
         .notification.focus { border-left: 3px solid var(--focus-color); }
 
+        /* ============================================
+           ULTRA COOL LOADING SCREEN
+           ============================================ */
         .loading-screen {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: #000;
             display: flex;
             flex-direction: column;
@@ -686,18 +708,242 @@
             align-items: center;
             z-index: 10000;
             font-family: 'Fira Code', monospace;
-            transition: opacity 1s ease;
+            overflow: hidden;
+            transition: opacity 0.5s ease;
         }
-        .loading-screen.hidden { opacity: 0; pointer-events: none; }
-        .terminal-text { color: #00ff9d; font-size: 1rem; margin-bottom: 15px; }
-        .loading-bar-container { width: 200px; height: 2px; background: #111; }
-        .loading-bar { height: 100%; background: #00ff9d; width: 0%; transition: width 0.1s linear; }
-        .loading-log { margin-top: 10px; color: #666; font-size: 0.7rem; }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Background Grid Animation */
+        .loader-grid {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 157, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 157, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+            transform: perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px);
+            animation: gridMove 20s linear infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes gridMove {
+            0% { transform: perspective(500px) rotateX(60deg) translateY(0) translateZ(-200px); }
+            100% { transform: perspective(500px) rotateX(60deg) translateY(40px) translateZ(-200px); }
+        }
+
+        /* Central Core */
+        .loader-core {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .core-sphere {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle at 30% 30%, #fff, var(--loader-color), #000);
+            border-radius: 50%;
+            box-shadow: 0 0 30px var(--loader-color), 0 0 60px var(--loader-color);
+            animation: corePulse 2s ease-in-out infinite;
+            z-index: 2;
+        }
+
+        @keyframes corePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 30px var(--loader-color); }
+            50% { transform: scale(1.1); box-shadow: 0 0 50px var(--loader-color), 0 0 80px var(--loader-color); }
+        }
+
+        .core-ring {
+            position: absolute;
+            border: 2px solid transparent;
+            border-top-color: var(--loader-color);
+            border-bottom-color: var(--loader-color);
+            border-radius: 50%;
+            animation: ringSpin 3s linear infinite;
+        }
+
+        .ring-1 { width: 100%; height: 100%; border-left-color: rgba(0, 255, 157, 0.3); animation-duration: 4s; }
+        .ring-2 { width: 120%; height: 120%; border-right-color: rgba(0, 255, 157, 0.5); animation-duration: 5s; animation-direction: reverse; }
+        .ring-3 { width: 140%; height: 140%; border-top-color: rgba(0, 255, 157, 0.2); animation-duration: 7s; }
+
+        @keyframes ringSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Circular Progress */
+        .loader-progress-svg {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            transform: rotate(-90deg);
+            z-index: 5;
+        }
+
+        .progress-circle-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 4;
+        }
+
+        .progress-circle-fill {
+            fill: none;
+            stroke: var(--loader-color);
+            stroke-width: 4;
+            stroke-dasharray: 565; /* 2 * PI * 90 */
+            stroke-dashoffset: 565;
+            transition: stroke-dashoffset 0.1s linear;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 5px var(--loader-color));
+        }
+
+        /* Text & Glitch */
+        .loader-text-container {
+            margin-top: 40px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .loader-title {
+            color: var(--loader-color);
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            position: relative;
+            display: inline-block;
+        }
+
+        .loader-title::before, .loader-title::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .loader-title::before {
+            left: 2px;
+            text-shadow: -1px 0 #ff00c1;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+
+        .loader-title::after {
+            left: -2px;
+            text-shadow: -1px 0 #00fff9;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim2 5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(31px, 9999px, 94px, 0); }
+            5% { clip: rect(70px, 9999px, 11px, 0); }
+            10% { clip: rect(22px, 9999px, 6px, 0); }
+            15% { clip: rect(85px, 9999px, 54px, 0); }
+            20% { clip: rect(13px, 9999px, 89px, 0); }
+            100% { clip: rect(49px, 9999px, 8px, 0); }
+        }
+
+        @keyframes glitch-anim2 {
+            0% { clip: rect(65px, 9999px, 99px, 0); }
+            5% { clip: rect(12px, 9999px, 5px, 0); }
+            10% { clip: rect(88px, 9999px, 36px, 0); }
+            15% { clip: rect(3px, 9999px, 67px, 0); }
+            20% { clip: rect(45px, 9999px, 21px, 0); }
+            100% { clip: rect(17px, 9999px, 92px, 0); }
+        }
+
+        .loader-log {
+            margin-top: 15px;
+            height: 20px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .loader-log::before {
+            content: '>';
+            color: var(--loader-color);
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .loader-percent {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--loader-color);
+            font-size: 1.2rem;
+            font-weight: 700;
+            z-index: 6;
+        }
+
+        /* Warp Effect */
+        .warp-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 20;
+        }
+
+        .warp-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, var(--loader-color), transparent);
+            transform-origin: center;
+            opacity: 0;
+        }
+
+        .loading-screen.warp-active .warp-lines {
+            opacity: 1;
+        }
+
+        .loading-screen.warp-active .warp-line {
+            animation: warpZoom 0.8s cubic-bezier(0.7, 0, 0.3, 1) forwards;
+        }
+
+        @keyframes warpZoom {
+            0% {
+                transform: translate(-50%, -50%) scale(0.1);
+                opacity: 1;
+                width: 2px;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(20);
+                opacity: 0;
+                width: 10px;
+            }
+        }
 
         @media (max-width: 768px) {
             .ui-overlay { left: 70px; bottom: 10px; right: 10px; width: auto; padding: 12px; }
             .info-panel { right: 10px; left: 10px; top: 10px; width: auto; }
-            .top-bar-timer { top: 10px; padding: 6px 15px; }
+            .top-bar-timer { top: 10px; padding: 6px 15px; flex-direction: column; gap: 10px; }
+            .timer-group { gap: 10px; }
+            .clock-display { border-left: none; border-top: 1px solid var(--border-color); padding-left: 0; padding-top: 5px; }
             .timer-display-large { font-size: 1.2rem; }
             .planet-selector { bottom: 70px; }
             .zoom-controls { right: 10px; bottom: 10px; }
@@ -707,13 +953,30 @@
     </style>
 </head>
 <body data-theme="dark">
-    <!-- Loading Screen -->
+    <!-- Ultra Cool Loading Screen -->
     <div class="loading-screen" id="loadingScreen">
-        <div class="terminal-text">INITIALIZING COSMIC_FOCUS...</div>
-        <div class="loading-bar-container">
-            <div class="loading-bar" id="loadingBar"></div>
+        <div class="loader-grid"></div>
+        
+        <div class="loader-core">
+            <div class="core-sphere"></div>
+            <div class="core-ring ring-1"></div>
+            <div class="core-ring ring-2"></div>
+            <div class="core-ring ring-3"></div>
+            
+            <svg class="loader-progress-svg">
+                <circle class="progress-circle-bg" cx="100" cy="100" r="90"></circle>
+                <circle class="progress-circle-fill" id="progressCircle" cx="100" cy="100" r="90"></circle>
+            </svg>
+            
+            <div class="loader-percent" id="loaderPercent">0%</div>
         </div>
-        <div class="loading-log" id="loadingLog">Loading assets...</div>
+
+        <div class="loader-text-container">
+            <div class="loader-title" data-text="COSMIC_FOCUS">COSMIC_FOCUS</div>
+            <div class="loader-log" id="loaderLog">Initializing system...</div>
+        </div>
+
+        <div class="warp-lines" id="warpLines"></div>
     </div>
 
     <!-- View Model Overlays -->
@@ -724,12 +987,17 @@
         <canvas id="threeCanvas"></canvas>
     </div>
 
-    <!-- Top Bar Timer -->
+    <!-- Top Bar Timer & Clock -->
     <div class="top-bar-timer" id="topBarTimer">
-        <div class="timer-display-large" id="timerDisplay">25:00</div>
-        <div style="display:flex; gap:6px;">
-            <button class="timer-btn-small start" id="timerStartBtn" onclick="toggleTimer()">▶</button>
-            <button class="timer-btn-small" onclick="resetTimer()">↺</button>
+        <div class="timer-group">
+            <div class="timer-display-large" id="timerDisplay">25:00</div>
+            <div style="display:flex; gap:6px;">
+                <button class="timer-btn-small start" id="timerStartBtn" onclick="toggleTimer()">▶</button>
+                <button class="timer-btn-small" onclick="resetTimer()">↺</button>
+            </div>
+        </div>
+        <div class="clock-display" id="clockDisplay">
+            Loading Date...
         </div>
     </div>
 
@@ -899,6 +1167,70 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+        // --- Sound Manager (Web Audio API) ---
+        const SoundManager = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playTone: function(freq, type, duration, vol = 0.1) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            hover: function() {
+                this.playTone(800, 'sine', 0.05, 0.02);
+            },
+            click: function() {
+                this.playTone(400, 'triangle', 0.1, 0.05);
+            },
+            toggle: function() {
+                this.playTone(600, 'sine', 0.15, 0.05);
+            },
+            notify: function() {
+                this.playTone(1200, 'sine', 0.1, 0.05);
+                setTimeout(() => this.playTone(1800, 'sine', 0.2, 0.05), 100);
+            },
+            alarm: function() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                for(let i=0; i<5; i++) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = 880;
+                    gain.gain.value = 0.1;
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i*0.3);
+                    osc.stop(now + i*0.3 + 0.15);
+                }
+            },
+            warp: function() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(2000, this.ctx.currentTime + 1);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 1);
+            }
+        };
+
         const planetsData = [
             { name: "Mercury", color: 0xC4B5A0, size: 0.4, distance: 10, speed: 4.1, realDistance: "57.9M km", orbitalPeriod: "88 days", diameter: "4,880 km", temperature: "167°C", gravity: "3.7 m/s²", moons: [], rank: 1, description: "Smallest planet, extreme temps.", funFact: "A year is 88 days, a day is 176 Earth days!" },
             { name: "Venus", color: 0xE6C87A, size: 0.9, distance: 15, speed: 1.6, realDistance: "108.2M km", orbitalPeriod: "225 days", diameter: "12,104 km", temperature: "464°C", gravity: "8.87 m/s²", moons: [], rank: 2, description: "Hottest planet, retrograde rotation.", funFact: "Spins backwards, day longer than year!" },
@@ -949,7 +1281,9 @@
             planetSelector: document.getElementById('planetSelector'), zoomControls: document.getElementById('zoomControls'),
             tooltip: document.getElementById('tooltip'), notification: document.getElementById('notification'),
             notifText: document.getElementById('notificationText'), notifIcon: document.getElementById('notificationIcon'),
-            loadingScreen: document.getElementById('loadingScreen'), loadingBar: document.getElementById('loadingBar'), loadingLog: document.getElementById('loadingLog'),
+            loadingScreen: document.getElementById('loadingScreen'), progressCircle: document.getElementById('progressCircle'),
+            loaderPercent: document.getElementById('loaderPercent'), loaderLog: document.getElementById('loaderLog'),
+            warpLines: document.getElementById('warpLines'), clockDisplay: document.getElementById('clockDisplay'),
             customTimeInput: document.getElementById('customTimeInput'), viewOverlay: document.getElementById('viewOverlay'),
             infoTitle: document.getElementById('infoTitle'), infoType: document.getElementById('infoType'),
             infoDistance: document.getElementById('infoDistance'), infoPeriod: document.getElementById('infoPeriod'),
@@ -958,6 +1292,15 @@
             infoDesc: document.getElementById('infoDescription'), funFactText: document.getElementById('funFactText'),
             timerDisplay: document.getElementById('timerDisplay'), timerStartBtn: document.getElementById('timerStartBtn')
         };
+
+        // Add sound listeners to all interactive elements
+        document.querySelectorAll('button, input[type=range], .toggle-row').forEach(el => {
+            el.addEventListener('mouseenter', () => SoundManager.hover());
+            el.addEventListener('click', () => {
+                if(el.classList.contains('toggle-row')) SoundManager.toggle();
+                else SoundManager.click();
+            });
+        });
 
         function toggleMenu() {
             state.showUI = !state.showUI;
@@ -975,7 +1318,6 @@
             els.menuIcon.textContent = hidden ? '📋' : '⚙️';
         }
 
-        // Expose functions to global scope for inline onclick handlers
         window.toggleTimerVisible = function() {
             state.timerVisibleWhenHidden = !state.timerVisibleWhenHidden;
             els.timerVisibleToggle.classList.toggle('active', state.timerVisibleWhenHidden);
@@ -1019,6 +1361,7 @@
             els.notifText.textContent = msg;
             els.notification.className = `notification ${type} show`;
             els.notifIcon.textContent = type === 'focus' ? '🍅' : (type === 'info' ? 'ℹ' : '✓');
+            SoundManager.notify();
             notificationTimeout = setTimeout(() => {
                 els.notification.classList.remove('show');
                 notificationTimeout = null;
@@ -1048,6 +1391,7 @@
         };
 
         window.toggleTimer = () => {
+            SoundManager.init(); // Ensure audio context is ready on first interaction
             if(state.isTimerRunning) {
                 clearInterval(state.timerInterval);
                 state.isTimerRunning = false;
@@ -1065,7 +1409,7 @@
                         state.isTimerRunning = false;
                         els.timerStartBtn.textContent = '▶';
                         els.timerStartBtn.classList.add('start');
-                        playAlarm();
+                        SoundManager.alarm();
                         showNotification('Time is up!', 'focus');
                     }
                 }, 1000);
@@ -1088,18 +1432,11 @@
             els.timerDisplay.style.color = state.timerMode === 'focus' ? 'var(--focus-color)' : (state.timerMode === 'short' ? 'var(--break-color)' : 'var(--secondary-color)');
         }
 
-        function playAlarm() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = 880;
-                gain.gain.value = 0.1;
-                osc.start();
-                setTimeout(() => osc.stop(), 500);
-            } catch(e) {}
+        function updateClock() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            els.clockDisplay.textContent = `${dateStr} • ${timeStr}`;
         }
 
         function createPlanetSelector() {
@@ -1480,27 +1817,70 @@
         els.zoomOut.addEventListener('click', () => { els.zoomRange.value = Math.max(parseFloat(els.zoomRange.value)-0.2, 0.5); els.zoomRange.dispatchEvent(new Event('input')); });
         els.closeInfo.addEventListener('click', () => els.infoPanel.classList.remove('active'));
 
+        // Enhanced Loading Screen Logic
         function initLoading() {
-            let p = 0;
-            const logs = ["LOADING...", "SYNCING...", "READY"];
-            let i = 0;
-            const int = setInterval(() => {
-                p += Math.random() * 5;
-                if(p >= 100) {
-                    p = 100;
-                    clearInterval(int);
+            const logs = [
+                "Initializing core systems...",
+                "Loading celestial data...",
+                "Calibrating orbit mechanics...",
+                "Rendering star field...",
+                "Syncing focus timer...",
+                "System Ready."
+            ];
+            
+            let progress = 0;
+            const circumference = 2 * Math.PI * 90; // r=90
+            const totalDuration = 4000; // 4 seconds
+            const startTime = Date.now();
+            let logIndex = 0;
+
+            function updateLoader() {
+                const elapsed = Date.now() - startTime;
+                progress = Math.min(elapsed / totalDuration, 1);
+                
+                // Update Circle
+                const offset = circumference - (progress * circumference);
+                els.progressCircle.style.strokeDashoffset = offset;
+                els.loaderPercent.textContent = `${Math.round(progress * 100)}%`;
+                
+                // Update Logs
+                const logThreshold = (logIndex + 1) / logs.length;
+                if (progress > logThreshold && logIndex < logs.length - 1) {
+                    logIndex++;
+                    els.loaderLog.textContent = logs[logIndex];
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateLoader);
+                } else {
+                    // Finish Loading
                     setTimeout(() => {
-                        els.loadingScreen.classList.add('hidden');
-                        initThree();
-                        animate();
-                        updateTimerDisplay();
-                        createPlanetSelector();
-                        showNotification("System Online", "success");
+                        SoundManager.warp();
+                        els.loadingScreen.classList.add('warp-active');
+                        setTimeout(() => {
+                            els.loadingScreen.classList.add('hidden');
+                            initThree();
+                            animate();
+                            updateTimerDisplay();
+                            updateClock();
+                            setInterval(updateClock, 1000); // Start clock
+                            createPlanetSelector();
+                            showNotification("System Online", "success");
+                        }, 800);
                     }, 500);
                 }
-                els.loadingBar.style.width = p + '%';
-                if(p > (i+1)*33 && i < logs.length) els.loadingLog.textContent = logs[i++];
-            }, 100);
+            }
+            
+            // Create Warp Lines
+            for(let i=0; i<30; i++) {
+                const line = document.createElement('div');
+                line.className = 'warp-line';
+                line.style.transform = `translate(-50%, -50%) rotate(${i * (360/30)}deg)`;
+                line.style.animationDelay = `${Math.random() * 0.2}s`;
+                els.warpLines.appendChild(line);
+            }
+
+            requestAnimationFrame(updateLoader);
         }
         initLoading();
     </script>
