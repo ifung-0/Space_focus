@@ -538,6 +538,18 @@
             text-align: center;
         }
 
+        .mission-time-display {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+            color: var(--secondary-color);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            border-left: 1px solid var(--border-color);
+            padding-left: 15px;
+            line-height: 1.4;
+        }
+
         .clock-display {
             font-family: 'Fira Code', monospace;
             font-size: 0.85rem;
@@ -609,10 +621,18 @@
             cursor: pointer;
             flex-shrink: 0;
             transition: all 0.3s;
+            position: relative;
         }
 
         .planet-btn:hover { transform: scale(1.15); border-color: var(--accent-color); }
         .planet-btn.active { border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color); }
+        
+        .planet-btn.iss-btn {
+            width: 28px;
+            height: 28px;
+            border: 2px dashed var(--secondary-color);
+            background: rgba(0, 217, 255, 0.2);
+        }
 
         .zoom-controls {
             position: absolute;
@@ -944,6 +964,7 @@
             .top-bar-timer { top: 10px; padding: 6px 15px; flex-direction: column; gap: 10px; }
             .timer-group { gap: 10px; }
             .clock-display { border-left: none; border-top: 1px solid var(--border-color); padding-left: 0; padding-top: 5px; }
+            .mission-time-display { border-left: none; border-top: 1px solid var(--border-color); padding-left: 0; padding-top: 5px; flex-direction: row; gap: 15px; align-items: center; }
             .timer-display-large { font-size: 1.2rem; }
             .planet-selector { bottom: 70px; }
             .zoom-controls { right: 10px; bottom: 10px; }
@@ -996,6 +1017,19 @@
                 <button class="timer-btn-small" onclick="resetTimer()">↺</button>
             </div>
         </div>
+        
+        <!-- Mission Time / Earth Days Passed -->
+        <div class="mission-time-display" id="missionTimeDisplay" style="display:none;">
+            <div>
+                <span style="color:var(--text-secondary); font-size:0.65rem; display:block;">MISSION TIME</span>
+                <span id="missionTimer" style="color:var(--secondary-color); font-weight:700;">00:00:00</span>
+            </div>
+            <div>
+                <span style="color:var(--text-secondary); font-size:0.65rem; display:block;">EARTH DAYS</span>
+                <span id="earthDaysCounter" style="color:var(--accent-color); font-weight:700;">0.0000</span>
+            </div>
+        </div>
+
         <div class="clock-display" id="clockDisplay">
             Loading Date...
         </div>
@@ -1242,12 +1276,26 @@
             { name: "Neptune", color: 0x2E86C1, size: 1.9, distance: 80, speed: 0.006, realDistance: "4.5B km", orbitalPeriod: "165 years", diameter: "49,244 km", temperature: "-201°C", gravity: "11.15 m/s²", moons: [{name:"Triton", size:0.3, distance:4, speed:7, color:0xe0e0e0}], rank: 8, description: "Windiest planet, deep blue color.", funFact: "Winds reach 2,100 km/h!" }
         ];
 
+        const issData = {
+            name: "ISS",
+            type: "Space Station",
+            realDistance: "400 km (Altitude)",
+            orbitalPeriod: "90 mins",
+            diameter: "109 m",
+            temperature: "Varies (-150°C to 120°C)",
+            gravity: "Microgravity",
+            description: "The International Space Station is a modular space station in low Earth orbit. It is a multinational collaborative project involving NASA, Roscosmos, JAXA, ESA, and CSA.",
+            funFact: "The ISS travels at 17,500 mph (28,000 km/h), completing 16 orbits per day!",
+            color: "#ffffff"
+        };
+
         const state = {
             speedMultiplier: 1, isPaused: false, showOrbits: true, showMoons: true, showUI: true,
             resolution: 32, timerMode: 'focus', timeLeft: 25 * 60, isTimerRunning: false, timerInterval: null, customFocusTime: 25,
             showAsteroidBelt: true, showKuiperBelt: true, showStars: true,
             timerVisibleWhenHidden: false, autoRotate: false, viewModel: 'default', theme: 'dark',
-            followingPlanet: null, lastInteraction: Date.now()
+            followingObject: null, lastInteraction: Date.now(),
+            sessionStartTime: null, missionTimerInterval: null, accumulatedSimTime: 0
         };
 
         const themes = ['dark', 'light', 'amber', 'cyber'];
@@ -1255,7 +1303,7 @@
         const timerConfig = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 };
 
         let scene, camera, renderer, controls, sun, planets = [], orbits = [], moonGroups = [];
-        let asteroidBelt, kuiperBelt, starsSystem;
+        let asteroidBelt, kuiperBelt, starsSystem, issGroup;
         let raycaster, mouse, animationId;
         let notificationTimeout = null;
 
@@ -1290,7 +1338,10 @@
             infoDiameter: document.getElementById('infoDiameter'), infoTemp: document.getElementById('infoTemp'),
             infoMoons: document.getElementById('infoMoons'), infoGravity: document.getElementById('infoGravity'),
             infoDesc: document.getElementById('infoDescription'), funFactText: document.getElementById('funFactText'),
-            timerDisplay: document.getElementById('timerDisplay'), timerStartBtn: document.getElementById('timerStartBtn')
+            timerDisplay: document.getElementById('timerDisplay'), timerStartBtn: document.getElementById('timerStartBtn'),
+            missionTimeDisplay: document.getElementById('missionTimeDisplay'),
+            missionTimer: document.getElementById('missionTimer'),
+            earthDaysCounter: document.getElementById('earthDaysCounter')
         };
 
         // Add sound listeners to all interactive elements
@@ -1372,10 +1423,12 @@
             state.timerMode = mode;
             state.isTimerRunning = false;
             clearInterval(state.timerInterval);
+            clearInterval(state.missionTimerInterval);
             state.timeLeft = mode === 'focus' ? state.customFocusTime * 60 : timerConfig[mode];
             document.querySelectorAll('.mode-btn-small').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
             els.timerStartBtn.textContent = '▶';
             els.timerStartBtn.classList.add('start');
+            els.missionTimeDisplay.style.display = 'none';
             updateTimerDisplay();
             showNotification(`Mode: ${mode}`, 'info');
         };
@@ -1391,37 +1444,73 @@
         };
 
         window.toggleTimer = () => {
-            SoundManager.init(); // Ensure audio context is ready on first interaction
+            SoundManager.init();
             if(state.isTimerRunning) {
                 clearInterval(state.timerInterval);
+                clearInterval(state.missionTimerInterval);
                 state.isTimerRunning = false;
                 els.timerStartBtn.textContent = '▶';
                 els.timerStartBtn.classList.add('start');
+                els.missionTimeDisplay.style.display = 'none';
             } else {
                 state.isTimerRunning = true;
+                state.sessionStartTime = Date.now();
+                state.accumulatedSimTime = 0; // Reset accumulated time on new session
                 els.timerStartBtn.textContent = '⏸';
                 els.timerStartBtn.classList.remove('start');
+                els.missionTimeDisplay.style.display = 'flex';
+                
+                // Countdown Timer
                 state.timerInterval = setInterval(() => {
                     state.timeLeft--;
                     updateTimerDisplay();
                     if(state.timeLeft <= 0) {
                         clearInterval(state.timerInterval);
+                        clearInterval(state.missionTimerInterval);
                         state.isTimerRunning = false;
                         els.timerStartBtn.textContent = '▶';
                         els.timerStartBtn.classList.add('start');
+                        els.missionTimeDisplay.style.display = 'none';
                         SoundManager.alarm();
                         showNotification('Time is up!', 'focus');
                     }
                 }, 1000);
+
+                // Mission Time / Earth Days Counter
+                // Logic: 1 Earth Orbit (Visual) = 60 seconds (at 1x speed) = 365 Earth Days
+                // So 1 Sim Second = 365/60 Earth Days
+                state.missionTimerInterval = setInterval(() => {
+                    const now = Date.now();
+                    const realElapsedSeconds = (now - state.sessionStartTime) / 1000;
+                    
+                    // Calculate Sim Seconds based on speed multiplier
+                    // If speed is 2x, 1 real second = 2 sim seconds
+                    const simSeconds = realElapsedSeconds * state.speedMultiplier;
+                    
+                    // Convert Sim Seconds to Earth Days
+                    // Ratio: 365 Days / 60 Seconds
+                    const earthDays = simSeconds * (365 / 60);
+                    
+                    // Format Mission Time (Real Time Elapsed)
+                    const h = Math.floor(realElapsedSeconds / 3600).toString().padStart(2, '0');
+                    const m = Math.floor((realElapsedSeconds % 3600) / 60).toString().padStart(2, '0');
+                    const s = Math.floor(realElapsedSeconds % 60).toString().padStart(2, '0');
+                    els.missionTimer.textContent = `${h}:${m}:${s}`;
+                    
+                    // Earth Days
+                    els.earthDaysCounter.textContent = earthDays.toFixed(4);
+                }, 100);
             }
         };
 
         window.resetTimer = () => {
             clearInterval(state.timerInterval);
+            clearInterval(state.missionTimerInterval);
             state.isTimerRunning = false;
             state.timeLeft = state.timerMode === 'focus' ? state.customFocusTime * 60 : timerConfig[state.timerMode];
             els.timerStartBtn.textContent = '▶';
             els.timerStartBtn.classList.add('start');
+            els.missionTimeDisplay.style.display = 'none';
             updateTimerDisplay();
         };
 
@@ -1446,6 +1535,19 @@
                 btn.style.background = `#${p.color.toString(16).padStart(6, '0')}`;
                 btn.onclick = () => focusOnPlanet(i);
                 els.planetSelector.appendChild(btn);
+
+                // Add ISS button next to Earth (Index 2)
+                if (p.name === "Earth") {
+                    const issBtn = document.createElement('div');
+                    issBtn.className = 'planet-btn iss-btn';
+                    issBtn.innerHTML = '🛰️';
+                    issBtn.style.display = 'flex';
+                    issBtn.style.alignItems = 'center';
+                    issBtn.style.justifyContent = 'center';
+                    issBtn.style.fontSize = '14px';
+                    issBtn.onclick = () => focusOnISS();
+                    els.planetSelector.appendChild(issBtn);
+                }
             });
         }
 
@@ -1454,9 +1556,11 @@
             if(!p) return;
             
             document.querySelectorAll('.planet-btn').forEach((b, idx) => b.classList.toggle('active', idx === i));
+            document.querySelectorAll('.iss-btn').forEach(b => b.classList.remove('active'));
+            
             showInfo(p.planetData);
             
-            state.followingPlanet = p;
+            state.followingObject = { type: 'planet', data: p };
             
             const pos = new THREE.Vector3();
             p.mesh.getWorldPosition(pos);
@@ -1464,6 +1568,24 @@
             controls.target.copy(pos);
             
             showNotification(`Following: ${p.planetData.name}`, 'info');
+        }
+
+        function focusOnISS() {
+            if(!issGroup) return;
+
+            document.querySelectorAll('.planet-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.iss-btn').forEach(b => b.classList.add('active'));
+
+            showInfo(issData);
+
+            state.followingObject = { type: 'iss', data: issGroup };
+
+            const pos = new THREE.Vector3();
+            issGroup.getWorldPosition(pos);
+
+            controls.target.copy(pos);
+
+            showNotification('Following: ISS', 'info');
         }
 
         function setResolution(res, btn) {
@@ -1535,8 +1657,8 @@
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.minDistance = 20;
-            controls.maxDistance = 200;
+            controls.minDistance = 5; // Lowered to allow close ISS view
+            controls.maxDistance = 300;
             controls.autoRotate = false;
             controls.autoRotateSpeed = 0.5;
             
@@ -1592,6 +1714,35 @@
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 group.add(mesh);
+
+                // Add ISS to Earth
+                if (data.name === "Earth") {
+                    issGroup = new THREE.Group();
+                    // ISS Model (Simplified Cross Shape)
+                    const issMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.8, roughness: 0.2, emissive: 0xffffff, emissiveIntensity: 0.5 });
+                    
+                    // Main Truss
+                    const truss = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.02), issMat);
+                    issGroup.add(truss);
+                    
+                    // Solar Arrays (Large Blue Panels)
+                    const panelMat = new THREE.MeshStandardMaterial({ color: 0x2244aa, metalness: 0.5, roughness: 0.5 });
+                    const panel1 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.01, 0.3), panelMat);
+                    panel1.position.set(0, 0.05, 0);
+                    issGroup.add(panel1);
+                    
+                    const panel2 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.01, 0.3), panelMat);
+                    panel2.position.set(0, -0.05, 0);
+                    issGroup.add(panel2);
+
+                    // Modules
+                    const module1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15, 16), issMat);
+                    module1.rotation.z = Math.PI / 2;
+                    issGroup.add(module1);
+
+                    issGroup.position.set(0, 1.2, 0); // Orbit height slightly above surface
+                    mesh.add(issGroup);
+                }
 
                 if(data.hasRings) {
                     const ring = new THREE.Mesh(
@@ -1730,6 +1881,7 @@
         function animate() {
             animationId = requestAnimationFrame(animate);
             
+            // Auto Rotate Logic Fix
             const timeSinceInteraction = Date.now() - state.lastInteraction;
             if (state.autoRotate && timeSinceInteraction > 2000) {
                 controls.autoRotate = true;
@@ -1737,16 +1889,36 @@
                 controls.autoRotate = false;
             }
             
-            if (state.followingPlanet && !state.isPaused) {
-                const planetPos = new THREE.Vector3();
-                state.followingPlanet.mesh.getWorldPosition(planetPos);
-                controls.target.lerp(planetPos, 0.1);
+            // Follow Object Logic (Planet or ISS)
+            if (state.followingObject && !state.isPaused) {
+                const targetPos = new THREE.Vector3();
                 
-                const offset = new THREE.Vector3(15, 10, 15);
-                const targetCamPos = planetPos.clone().add(offset);
+                if (state.followingObject.type === 'planet') {
+                    state.followingObject.data.mesh.getWorldPosition(targetPos);
+                } else if (state.followingObject.type === 'iss' && issGroup) {
+                    issGroup.getWorldPosition(targetPos);
+                }
+
+                controls.target.lerp(targetPos, 0.1);
+                
+                // Determine offset based on object size
+                let offset;
+                if (state.followingObject.type === 'iss') {
+                    offset = new THREE.Vector3(3, 2, 3); // Much closer for ISS
+                } else {
+                    offset = new THREE.Vector3(15, 10, 15); // Standard for planets
+                }
+                
+                const targetCamPos = targetPos.clone().add(offset);
                 camera.position.lerp(targetCamPos, 0.05);
             }
             
+            // ISS Orbit Animation
+            if (issGroup) {
+                issGroup.rotation.y += 0.05 * state.speedMultiplier;
+                issGroup.rotation.z += 0.02 * state.speedMultiplier;
+            }
+
             if(sun) sun.rotation.y += 0.002 * state.speedMultiplier;
             
             if(!state.isPaused) {
@@ -1806,7 +1978,7 @@
         els.tiltView.addEventListener('click', () => setView(30, els.tiltView));
         els.edgeView.addEventListener('click', () => setView(1, els.edgeView));
         els.resetView.addEventListener('click', () => {
-            state.followingPlanet = null;
+            state.followingObject = null;
             els.zoomRange.value = 1;
             camera.position.set(0, 60, 80);
             controls.target.set(0, 0, 0);
