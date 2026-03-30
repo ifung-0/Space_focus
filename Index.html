@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cosmic Focus // Solar System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fontsource-segoe-ui@latest/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fontsource-fira-code@latest/index.css">
+    <style>
+        :root {
+            --bg-color: #0b0d17;
+            --panel-bg: rgba(11, 13, 23, 0.85);
+            --accent-color: #ffd700;
+            --secondary-color: #00d9ff;
+            --focus-color: #ff6b6b;
+            --break-color: #4ade80;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --success-color: #4ade80;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0b0d17;
+            --panel-bg: rgba(11, 13, 23, 0.85);
+            --accent-color: #ffd700;
+            --text-primary: #ffffff;
+        }
+
+        [data-theme="light"] {
+            --bg-color: #f0f4f8;
+            --panel-bg: rgba(255, 255, 255, 0.9);
+            --accent-color: #2563eb;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="amber"] {
+            --bg-color: #1a1510;
+            --panel-bg: rgba(30, 25, 20, 0.9);
+            --accent-color: #f59e0b;
+            --text-primary: #fef3c7;
+            --text-secondary: #d97706;
+            --border-color: rgba(245, 158, 11, 0.2);
+        }
+
+        [data-theme="cyber"] {
+            --bg-color: #0a0a1a;
+            --panel-bg: rgba(10, 10, 30, 0.9);
+            --accent-color: #00ff9d;
+            --secondary-color: #ff00ff;
+            --text-primary: #00ff9d;
+            --text-secondary: #00d9ff;
+            --border-color: rgba(0, 255, 157, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            touch-action: none;
+            transition: background 0.5s ease;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #threeCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* View Model Overlays */
+        .view-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            display: none;
+        }
+
+        .view-overlay.spaceship {
+            display: block;
+            background: 
+                linear-gradient(90deg, transparent 45%, rgba(0,0,0,0.3) 50%, transparent 55%),
+                linear-gradient(180deg, transparent 45%, rgba(0,0,0,0.3) 50%, transparent 55%);
+        }
+
+        .view-overlay.spaceship::before {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40%;
+            height: 2px;
+            background: rgba(0, 255, 157, 0.5);
+            box-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
+        }
+
+        .view-overlay.helmet {
+            display: block;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.6) 100%);
+        }
+
+        .view-overlay.helmet::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30%;
+            background: linear-gradient(180deg, transparent, rgba(0,0,0,0.5));
+            border-top: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .view-overlay.retro {
+            display: block;
+            background: 
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 157, 0.03) 2px, rgba(0, 255, 157, 0.03) 4px);
+        }
+
+        .view-overlay.retro::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, transparent 50%, rgba(0, 255, 157, 0.1) 100%);
+        }
+
+        /* UI Panels */
+        .ui-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            font-size: 0.85rem;
+            width: 340px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-height: 85vh;
+            overflow-y: auto;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+        }
+
+        .ui-overlay.hidden {
+            transform: translateX(-120%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .ui-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            color: var(--accent-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .control-label {
+            width: 24px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        input[type=range] {
+            flex: 1;
+            accent-color: var(--accent-color);
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            -webkit-appearance: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+        }
+
+        .val-display {
+            width: 35px;
+            text-align: right;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .btn-icon {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .btn-icon.active {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-icon.secondary.active {
+            background: var(--secondary-color);
+            color: var(--bg-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-icon.danger.active {
+            background: var(--focus-color);
+            color: white;
+            border-color: var(--focus-color);
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+        }
+
+        .toggle-row:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .toggle-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .toggle-switch {
+            width: 40px;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch.active {
+            background: var(--accent-color);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        .timer-settings {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        }
+
+        .timer-modes {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .mode-btn-small {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .mode-btn-small.active {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+
+        .custom-time-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        input[type=number] {
+            width: 50px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: white;
+            padding: 2px 5px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+        }
+
+        .menu-toggle-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 45px;
+            height: 45px;
+            border-radius: 10px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            color: var(--accent-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 101;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .menu-toggle-btn:hover {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            transform: scale(1.05);
+        }
+
+        .menu-toggle-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .info-panel.active {
+            transform: translateX(0);
+        }
+
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .info-title {
+            color: var(--accent-color);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .info-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            background: rgba(255,255,255,0.03);
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .info-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .info-desc {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .fun-fact {
+            background: rgba(255, 215, 0, 0.05);
+            border-left: 2px solid var(--accent-color);
+            padding: 8px;
+            font-size: 0.75rem;
+            color: var(--text-primary);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .close-btn:hover { color: var(--text-primary); }
+
+        .top-bar-timer {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            padding: 8px 20px;
+            border-radius: 50px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .top-bar-timer.hidden {
+            transform: translateX(-50%) translateY(-120%);
+            opacity: 0;
+        }
+
+        .timer-display-large {
+            font-family: 'Fira Code', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--focus-color);
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .timer-btn-small {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .timer-btn-small:hover {
+            background: var(--text-primary);
+            color: var(--bg-color);
+        }
+
+        .timer-btn-small.start {
+            border-color: var(--focus-color);
+            color: var(--focus-color);
+            background: rgba(255, 107, 107, 0.1);
+        }
+        
+        .timer-btn-small.start:hover {
+            background: var(--focus-color);
+            color: white;
+        }
+
+        .planet-selector {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            padding: 8px 15px;
+            border-radius: 50px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+            max-width: 90%;
+            overflow-x: auto;
+        }
+
+        .planet-selector.hidden {
+            transform: translateX(-50%) translateY(120%);
+            opacity: 0;
+        }
+
+        .planet-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .planet-btn:hover { transform: scale(1.15); border-color: var(--accent-color); }
+        .planet-btn.active { border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color); }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 100;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .zoom-controls.hidden {
+            transform: translateX(120%);
+            opacity: 0;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover { background: var(--accent-color); color: var(--bg-color); }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+        }
+        .tooltip.visible { opacity: 1; }
+
+        .notification {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: var(--panel-bg);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+            font-size: 0.85rem;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .notification.success { border-left: 3px solid var(--success-color); }
+        .notification.info { border-left: 3px solid var(--secondary-color); }
+        .notification.focus { border-left: 3px solid var(--focus-color); }
+
+        .loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: 'Fira Code', monospace;
+            transition: opacity 1s ease;
+        }
+        .loading-screen.hidden { opacity: 0; pointer-events: none; }
+        .terminal-text { color: #00ff9d; font-size: 1rem; margin-bottom: 15px; }
+        .loading-bar-container { width: 200px; height: 2px; background: #111; }
+        .loading-bar { height: 100%; background: #00ff9d; width: 0%; transition: width 0.1s linear; }
+        .loading-log { margin-top: 10px; color: #666; font-size: 0.7rem; }
+
+        @media (max-width: 768px) {
+            .ui-overlay { left: 70px; bottom: 10px; right: 10px; width: auto; padding: 12px; }
+            .info-panel { right: 10px; left: 10px; top: 10px; width: auto; }
+            .top-bar-timer { top: 10px; padding: 6px 15px; }
+            .timer-display-large { font-size: 1.2rem; }
+            .planet-selector { bottom: 70px; }
+            .zoom-controls { right: 10px; bottom: 10px; }
+            .zoom-btn { width: 36px; height: 36px; }
+            .menu-toggle-btn { bottom: 10px; left: 10px; width: 40px; height: 40px; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="terminal-text">INITIALIZING COSMIC_FOCUS...</div>
+        <div class="loading-bar-container">
+            <div class="loading-bar" id="loadingBar"></div>
+        </div>
+        <div class="loading-log" id="loadingLog">Loading assets...</div>
+    </div>
+
+    <!-- View Model Overlays -->
+    <div class="view-overlay" id="viewOverlay"></div>
+
+    <!-- Main Canvas -->
+    <div id="canvas-container">
+        <canvas id="threeCanvas"></canvas>
+    </div>
+
+    <!-- Top Bar Timer -->
+    <div class="top-bar-timer" id="topBarTimer">
+        <div class="timer-display-large" id="timerDisplay">25:00</div>
+        <div style="display:flex; gap:6px;">
+            <button class="timer-btn-small start" id="timerStartBtn" onclick="toggleTimer()">▶</button>
+            <button class="timer-btn-small" onclick="resetTimer()">↺</button>
+        </div>
+    </div>
+
+    <!-- Menu Toggle -->
+    <button class="menu-toggle-btn" id="menuToggleBtn" title="Toggle Menu">
+        <span id="menuToggleIcon">⚙️</span>
+    </button>
+
+    <!-- Compact Controls Overlay -->
+    <div class="ui-overlay" id="uiOverlay">
+        <div class="ui-header">
+            <span>SYSTEM CONTROL</span>
+            <span style="font-size:0.7rem; opacity:0.5;">v3.0</span>
+        </div>
+        
+        <!-- Timer Settings -->
+        <div class="timer-settings">
+            <div class="timer-modes">
+                <button class="mode-btn-small active" data-mode="focus" onclick="setTimerMode('focus')">Focus</button>
+                <button class="mode-btn-small" data-mode="short" onclick="setTimerMode('short')">Break</button>
+                <button class="mode-btn-small" data-mode="long" onclick="setTimerMode('long')">Long</button>
+            </div>
+            <div class="custom-time-row">
+                <span>Custom (min):</span>
+                <input type="number" id="customTimeInput" value="25" min="1" max="120">
+                <button class="btn-icon" style="width:24px; height:24px; padding:0;" onclick="applyCustomTime()">✓</button>
+            </div>
+        </div>
+
+        <!-- Sliders -->
+        <div class="control-row">
+            <div class="control-label">⚡</div>
+            <input type="range" id="speedRange" min="0" max="5" step="0.1" value="1">
+            <span class="val-display" id="speedValue">1.0x</span>
+        </div>
+        <div class="control-row">
+            <div class="control-label">🔍</div>
+            <input type="range" id="zoomRange" min="0.5" max="3" step="0.1" value="1">
+            <span class="val-display" id="zoomValue">100%</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="btn-grid">
+            <button class="btn-icon danger" id="pauseBtn" title="Pause">⏸</button>
+            <button class="btn-icon active" id="orbitToggle" title="Orbits">🔵</button>
+            <button class="btn-icon active" id="moonsToggle" title="Moons">🌙</button>
+            <button class="btn-icon secondary" id="screenshotBtn" title="Screenshot">📷</button>
+        </div>
+
+        <!-- Belt Toggles -->
+        <div class="btn-grid">
+            <button class="btn-icon secondary active" id="asteroidToggle" title="Asteroid Belt">🪨 Belt</button>
+            <button class="btn-icon secondary active" id="kuiperToggle" title="Kuiper Belt">❄️ Kuiper</button>
+            <button class="btn-icon" id="starsToggle" title="Stars">✨ Stars</button>
+            <button class="btn-icon" id="resetView" title="Reset">RST</button>
+        </div>
+
+        <!-- Settings Toggles -->
+        <div style="margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+            <div class="toggle-row" onclick="toggleTimerVisible()">
+                <span class="toggle-label">📍 Show Timer (Hidden)</span>
+                <div class="toggle-switch" id="timerVisibleToggle"></div>
+            </div>
+            <div class="toggle-row" onclick="toggleAutoRotate()">
+                <span class="toggle-label">🔄 Auto Rotate</span>
+                <div class="toggle-switch" id="autoRotateToggle"></div>
+            </div>
+            <div class="toggle-row" onclick="cycleViewModel()">
+                <span class="toggle-label">👁️ View Model</span>
+                <div class="toggle-switch" id="viewModelToggle"></div>
+            </div>
+            <div class="toggle-row" onclick="cycleTheme()">
+                <span class="toggle-label">🎨 Theme</span>
+                <div class="toggle-switch" id="themeToggle"></div>
+            </div>
+        </div>
+
+        <!-- View & Resolution -->
+        <div class="btn-grid">
+            <button class="btn-icon secondary active" id="topView" title="Top View">Top</button>
+            <button class="btn-icon secondary" id="tiltView" title="Tilted View">Iso</button>
+            <button class="btn-icon secondary" id="edgeView" title="Edge View">Edge</button>
+            <button class="btn-icon" id="allBeltsBtn" title="Toggle All Belts">All</button>
+        </div>
+        
+        <div style="text-align:center; margin-top:5px;">
+            <button class="btn-icon" style="width:auto; padding:4px 12px; font-size:0.7rem;" id="resLow">Low</button>
+            <button class="btn-icon active" style="width:auto; padding:4px 12px; font-size:0.7rem;" id="resMed">Med</button>
+            <button class="btn-icon" style="width:auto; padding:4px 12px; font-size:0.7rem;" id="resHigh">High</button>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel" id="infoPanel">
+        <div class="info-header">
+            <div>
+                <div class="info-title" id="infoTitle">Planet</div>
+                <div class="info-subtitle" id="infoType">Class: Unknown</div>
+            </div>
+            <button class="close-btn" id="closeInfo">×</button>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Distance</span>
+                <span class="info-value" id="infoDistance">-</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Period</span>
+                <span class="info-value" id="infoPeriod">-</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Diameter</span>
+                <span class="info-value" id="infoDiameter">-</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Temp</span>
+                <span class="info-value" id="infoTemp">-</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Moons</span>
+                <span class="info-value" id="infoMoons">-</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Gravity</span>
+                <span class="info-value" id="infoGravity">-</span>
+            </div>
+        </div>
+
+        <div class="info-desc" id="infoDescription">
+            Select a planet to view data.
+        </div>
+        <div class="fun-fact" id="funFact">
+            💡 <span id="funFactText">Fun fact will appear here!</span>
+        </div>
+    </div>
+
+    <!-- Planet Selector -->
+    <div class="planet-selector" id="planetSelector"></div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls" id="zoomControls">
+        <button class="zoom-btn" id="zoomIn">+</button>
+        <button class="zoom-btn" id="zoomOut">−</button>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <span id="notificationIcon">✓</span>
+        <span id="notificationText">Action completed!</span>
+    </div>
+
+    <!-- Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const planetsData = [
+            { name: "Mercury", color: 0xC4B5A0, size: 0.4, distance: 10, speed: 4.1, realDistance: "57.9M km", orbitalPeriod: "88 days", diameter: "4,880 km", temperature: "167°C", gravity: "3.7 m/s²", moons: [], rank: 1, description: "Smallest planet, extreme temps.", funFact: "A year is 88 days, a day is 176 Earth days!" },
+            { name: "Venus", color: 0xE6C87A, size: 0.9, distance: 15, speed: 1.6, realDistance: "108.2M km", orbitalPeriod: "225 days", diameter: "12,104 km", temperature: "464°C", gravity: "8.87 m/s²", moons: [], rank: 2, description: "Hottest planet, retrograde rotation.", funFact: "Spins backwards, day longer than year!" },
+            { name: "Earth", color: 0x4A90D9, size: 1, distance: 20, speed: 1, realDistance: "149.6M km", orbitalPeriod: "365.25 days", diameter: "12,742 km", temperature: "15°C", gravity: "9.8 m/s²", moons: [{name:"Moon", size:0.27, distance:2, speed:12, color:0xcccccc}], rank: 3, description: "Only known life-bearing world.", funFact: "Only planet not named after a god!" },
+            { name: "Mars", color: 0xDD4C22, size: 0.53, distance: 25, speed: 0.53, realDistance: "227.9M km", orbitalPeriod: "687 days", diameter: "6,779 km", temperature: "-63°C", gravity: "3.71 m/s²", moons: [{name:"Phobos", size:0.1, distance:1.5, speed:20, color:0x888888}, {name:"Deimos", size:0.08, distance:2, speed:15, color:0x888888}], rank: 4, description: "The Red Planet, home to Olympus Mons.", funFact: "Has the largest dust storms in the solar system!" },
+            { name: "Jupiter", color: 0xD4A574, size: 3.5, distance: 35, speed: 0.08, realDistance: "778.5M km", orbitalPeriod: "11.86 years", diameter: "139,820 km", temperature: "-108°C", gravity: "24.79 m/s²", moons: [{name:"Io", size:0.3, distance:4.5, speed:8, color:0xffcc00}, {name:"Europa", size:0.28, distance:5.5, speed:6, color:0xaaddff}, {name:"Ganymede", size:0.4, distance:7, speed:4, color:0x888888}, {name:"Callisto", size:0.35, distance:8.5, speed:3, color:0x654321}], rank: 5, description: "Gas giant, Great Red Spot storm.", funFact: "Could fit 1,300 Earths inside it!" },
+            { name: "Saturn", color: 0xF4D03F, size: 3, distance: 50, speed: 0.03, realDistance: "1.4B km", orbitalPeriod: "29.46 years", diameter: "116,460 km", temperature: "-139°C", gravity: "10.44 m/s²", hasRings: true, moons: [{name:"Titan", size:0.4, distance:6, speed:5, color:0xe6ac00}, {name:"Rhea", size:0.2, distance:5, speed:7, color:0xcccccc}], rank: 6, description: "Famous for its spectacular ring system.", funFact: "Would float in water if you found a big enough tub!" },
+            { name: "Uranus", color: 0x73C6B6, size: 2, distance: 65, speed: 0.01, realDistance: "2.9B km", orbitalPeriod: "84 years", diameter: "50,724 km", temperature: "-197°C", gravity: "8.69 m/s²", moons: [{name:"Titania", size:0.25, distance:4, speed:6, color:0xdddddd}], rank: 7, description: "Ice giant, rotates on its side.", funFact: "Rotates at a 98-degree angle!" },
+            { name: "Neptune", color: 0x2E86C1, size: 1.9, distance: 80, speed: 0.006, realDistance: "4.5B km", orbitalPeriod: "165 years", diameter: "49,244 km", temperature: "-201°C", gravity: "11.15 m/s²", moons: [{name:"Triton", size:0.3, distance:4, speed:7, color:0xe0e0e0}], rank: 8, description: "Windiest planet, deep blue color.", funFact: "Winds reach 2,100 km/h!" }
+        ];
+
+        const state = {
+            speedMultiplier: 1, isPaused: false, showOrbits: true, showMoons: true, showUI: true,
+            resolution: 32, timerMode: 'focus', timeLeft: 25 * 60, isTimerRunning: false, timerInterval: null, customFocusTime: 25,
+            showAsteroidBelt: true, showKuiperBelt: true, showStars: true,
+            timerVisibleWhenHidden: false, autoRotate: false, viewModel: 'default', theme: 'dark',
+            followingPlanet: null, lastInteraction: Date.now()
+        };
+
+        const themes = ['dark', 'light', 'amber', 'cyber'];
+        const viewModels = ['default', 'spaceship', 'helmet', 'retro'];
+        const timerConfig = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 };
+
+        let scene, camera, renderer, controls, sun, planets = [], orbits = [], moonGroups = [];
+        let asteroidBelt, kuiperBelt, starsSystem;
+        let raycaster, mouse, animationId;
+        let notificationTimeout = null;
+
+        const els = {
+            canvas: document.getElementById('threeCanvas'),
+            speedRange: document.getElementById('speedRange'), speedValue: document.getElementById('speedValue'),
+            zoomRange: document.getElementById('zoomRange'), zoomValue: document.getElementById('zoomValue'),
+            pauseBtn: document.getElementById('pauseBtn'), orbitToggle: document.getElementById('orbitToggle'),
+            moonsToggle: document.getElementById('moonsToggle'), screenshotBtn: document.getElementById('screenshotBtn'),
+            asteroidToggle: document.getElementById('asteroidToggle'), kuiperToggle: document.getElementById('kuiperToggle'),
+            starsToggle: document.getElementById('starsToggle'), allBeltsBtn: document.getElementById('allBeltsBtn'),
+            timerVisibleToggle: document.getElementById('timerVisibleToggle'),
+            autoRotateToggle: document.getElementById('autoRotateToggle'),
+            viewModelToggle: document.getElementById('viewModelToggle'),
+            themeToggle: document.getElementById('themeToggle'),
+            resLow: document.getElementById('resLow'), resMed: document.getElementById('resMed'), resHigh: document.getElementById('resHigh'),
+            topView: document.getElementById('topView'), tiltView: document.getElementById('tiltView'), edgeView: document.getElementById('edgeView'),
+            resetView: document.getElementById('resetView'),
+            infoPanel: document.getElementById('infoPanel'), closeInfo: document.getElementById('closeInfo'),
+            zoomIn: document.getElementById('zoomIn'), zoomOut: document.getElementById('zoomOut'),
+            menuToggle: document.getElementById('menuToggleBtn'), menuIcon: document.getElementById('menuToggleIcon'),
+            uiOverlay: document.getElementById('uiOverlay'), topBarTimer: document.getElementById('topBarTimer'),
+            planetSelector: document.getElementById('planetSelector'), zoomControls: document.getElementById('zoomControls'),
+            tooltip: document.getElementById('tooltip'), notification: document.getElementById('notification'),
+            notifText: document.getElementById('notificationText'), notifIcon: document.getElementById('notificationIcon'),
+            loadingScreen: document.getElementById('loadingScreen'), loadingBar: document.getElementById('loadingBar'), loadingLog: document.getElementById('loadingLog'),
+            customTimeInput: document.getElementById('customTimeInput'), viewOverlay: document.getElementById('viewOverlay'),
+            infoTitle: document.getElementById('infoTitle'), infoType: document.getElementById('infoType'),
+            infoDistance: document.getElementById('infoDistance'), infoPeriod: document.getElementById('infoPeriod'),
+            infoDiameter: document.getElementById('infoDiameter'), infoTemp: document.getElementById('infoTemp'),
+            infoMoons: document.getElementById('infoMoons'), infoGravity: document.getElementById('infoGravity'),
+            infoDesc: document.getElementById('infoDescription'), funFactText: document.getElementById('funFactText'),
+            timerDisplay: document.getElementById('timerDisplay'), timerStartBtn: document.getElementById('timerStartBtn')
+        };
+
+        function toggleMenu() {
+            state.showUI = !state.showUI;
+            const hidden = !state.showUI;
+            els.uiOverlay.classList.toggle('hidden', hidden);
+            els.zoomControls.classList.toggle('hidden', hidden);
+            els.planetSelector.classList.toggle('hidden', hidden);
+            
+            if (state.timerVisibleWhenHidden) {
+                els.topBarTimer.classList.remove('hidden');
+            } else {
+                els.topBarTimer.classList.toggle('hidden', hidden);
+            }
+            
+            els.menuIcon.textContent = hidden ? '📋' : '⚙️';
+        }
+
+        // Expose functions to global scope for inline onclick handlers
+        window.toggleTimerVisible = function() {
+            state.timerVisibleWhenHidden = !state.timerVisibleWhenHidden;
+            els.timerVisibleToggle.classList.toggle('active', state.timerVisibleWhenHidden);
+            showNotification(state.timerVisibleWhenHidden ? 'Timer always visible' : 'Timer follows menu', 'info');
+        };
+
+        window.toggleAutoRotate = function() {
+            state.autoRotate = !state.autoRotate;
+            els.autoRotateToggle.classList.toggle('active', state.autoRotate);
+            controls.autoRotate = state.autoRotate;
+            controls.autoRotateSpeed = 0.5;
+            showNotification(state.autoRotate ? 'Auto-rotate ON' : 'Auto-rotate OFF', 'info');
+        };
+
+        window.cycleViewModel = function() {
+            const currentIndex = viewModels.indexOf(state.viewModel);
+            state.viewModel = viewModels[(currentIndex + 1) % viewModels.length];
+            els.viewModelToggle.classList.toggle('active', state.viewModel !== 'default');
+            
+            els.viewOverlay.className = 'view-overlay';
+            if (state.viewModel !== 'default') {
+                els.viewOverlay.classList.add(state.viewModel);
+            }
+            
+            showNotification(`View: ${state.viewModel}`, 'info');
+        };
+
+        window.cycleTheme = function() {
+            const currentIndex = themes.indexOf(state.theme);
+            state.theme = themes[(currentIndex + 1) % themes.length];
+            document.body.setAttribute('data-theme', state.theme);
+            els.themeToggle.classList.add('active');
+            showNotification(`Theme: ${state.theme}`, 'info');
+        };
+
+        function showNotification(msg, type = 'success') {
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+                els.notification.classList.remove('show');
+            }
+            els.notifText.textContent = msg;
+            els.notification.className = `notification ${type} show`;
+            els.notifIcon.textContent = type === 'focus' ? '🍅' : (type === 'info' ? 'ℹ' : '✓');
+            notificationTimeout = setTimeout(() => {
+                els.notification.classList.remove('show');
+                notificationTimeout = null;
+            }, 3000);
+        }
+
+        window.setTimerMode = (mode) => {
+            state.timerMode = mode;
+            state.isTimerRunning = false;
+            clearInterval(state.timerInterval);
+            state.timeLeft = mode === 'focus' ? state.customFocusTime * 60 : timerConfig[mode];
+            document.querySelectorAll('.mode-btn-small').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+            els.timerStartBtn.textContent = '▶';
+            els.timerStartBtn.classList.add('start');
+            updateTimerDisplay();
+            showNotification(`Mode: ${mode}`, 'info');
+        };
+
+        window.applyCustomTime = () => {
+            const mins = parseInt(els.customTimeInput.value);
+            if(mins > 0) {
+                state.customFocusTime = mins;
+                timerConfig.focus = mins * 60;
+                if(state.timerMode === 'focus') setTimerMode('focus');
+                showNotification(`Focus set to ${mins}m`, 'success');
+            }
+        };
+
+        window.toggleTimer = () => {
+            if(state.isTimerRunning) {
+                clearInterval(state.timerInterval);
+                state.isTimerRunning = false;
+                els.timerStartBtn.textContent = '▶';
+                els.timerStartBtn.classList.add('start');
+            } else {
+                state.isTimerRunning = true;
+                els.timerStartBtn.textContent = '⏸';
+                els.timerStartBtn.classList.remove('start');
+                state.timerInterval = setInterval(() => {
+                    state.timeLeft--;
+                    updateTimerDisplay();
+                    if(state.timeLeft <= 0) {
+                        clearInterval(state.timerInterval);
+                        state.isTimerRunning = false;
+                        els.timerStartBtn.textContent = '▶';
+                        els.timerStartBtn.classList.add('start');
+                        playAlarm();
+                        showNotification('Time is up!', 'focus');
+                    }
+                }, 1000);
+            }
+        };
+
+        window.resetTimer = () => {
+            clearInterval(state.timerInterval);
+            state.isTimerRunning = false;
+            state.timeLeft = state.timerMode === 'focus' ? state.customFocusTime * 60 : timerConfig[state.timerMode];
+            els.timerStartBtn.textContent = '▶';
+            els.timerStartBtn.classList.add('start');
+            updateTimerDisplay();
+        };
+
+        function updateTimerDisplay() {
+            const m = Math.floor(state.timeLeft / 60).toString().padStart(2, '0');
+            const s = (state.timeLeft % 60).toString().padStart(2, '0');
+            els.timerDisplay.textContent = `${m}:${s}`;
+            els.timerDisplay.style.color = state.timerMode === 'focus' ? 'var(--focus-color)' : (state.timerMode === 'short' ? 'var(--break-color)' : 'var(--secondary-color)');
+        }
+
+        function playAlarm() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                gain.gain.value = 0.1;
+                osc.start();
+                setTimeout(() => osc.stop(), 500);
+            } catch(e) {}
+        }
+
+        function createPlanetSelector() {
+            planetsData.forEach((p, i) => {
+                const btn = document.createElement('div');
+                btn.className = 'planet-btn';
+                btn.style.background = `#${p.color.toString(16).padStart(6, '0')}`;
+                btn.onclick = () => focusOnPlanet(i);
+                els.planetSelector.appendChild(btn);
+            });
+        }
+
+        function focusOnPlanet(i) {
+            const p = planets[i];
+            if(!p) return;
+            
+            document.querySelectorAll('.planet-btn').forEach((b, idx) => b.classList.toggle('active', idx === i));
+            showInfo(p.planetData);
+            
+            state.followingPlanet = p;
+            
+            const pos = new THREE.Vector3();
+            p.mesh.getWorldPosition(pos);
+            
+            controls.target.copy(pos);
+            
+            showNotification(`Following: ${p.planetData.name}`, 'info');
+        }
+
+        function setResolution(res, btn) {
+            state.resolution = res;
+            [els.resLow, els.resMed, els.resHigh].forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            planets.forEach(p => {
+                p.mesh.geometry.dispose();
+                p.mesh.geometry = new THREE.SphereGeometry(p.planetData.size, res, res);
+                
+                if (res >= 64) {
+                    p.mesh.material.roughness = 0.5;
+                    p.mesh.material.metalness = 0.4;
+                } else if (res >= 32) {
+                    p.mesh.material.roughness = 0.7;
+                    p.mesh.material.metalness = 0.3;
+                } else {
+                    p.mesh.material.roughness = 0.9;
+                    p.mesh.material.metalness = 0.1;
+                }
+            });
+            
+            showNotification(`Resolution: ${res} (Quality: ${res >= 64 ? 'High' : res >= 32 ? 'Medium' : 'Low'})`, 'info');
+        }
+
+        function toggleAsteroidBelt() {
+            state.showAsteroidBelt = !state.showAsteroidBelt;
+            if(asteroidBelt) asteroidBelt.visible = state.showAsteroidBelt;
+            els.asteroidToggle.classList.toggle('active', state.showAsteroidBelt);
+            showNotification(state.showAsteroidBelt ? 'Asteroid Belt: ON' : 'Asteroid Belt: OFF', 'info');
+        }
+
+        function toggleKuiperBelt() {
+            state.showKuiperBelt = !state.showKuiperBelt;
+            if(kuiperBelt) kuiperBelt.visible = state.showKuiperBelt;
+            els.kuiperToggle.classList.toggle('active', state.showKuiperBelt);
+            showNotification(state.showKuiperBelt ? 'Kuiper Belt: ON' : 'Kuiper Belt: OFF', 'info');
+        }
+
+        function toggleStars() {
+            state.showStars = !state.showStars;
+            if(starsSystem) starsSystem.visible = state.showStars;
+            els.starsToggle.classList.toggle('active', state.showStars);
+            showNotification(state.showStars ? 'Stars: ON' : 'Stars: OFF', 'info');
+        }
+
+        function toggleAllBelts() {
+            const newState = !(state.showAsteroidBelt && state.showKuiperBelt);
+            state.showAsteroidBelt = newState;
+            state.showKuiperBelt = newState;
+            if(asteroidBelt) asteroidBelt.visible = newState;
+            if(kuiperBelt) kuiperBelt.visible = newState;
+            els.asteroidToggle.classList.toggle('active', newState);
+            els.kuiperToggle.classList.toggle('active', newState);
+            showNotification(newState ? 'All Belts: ON' : 'All Belts: OFF', 'info');
+        }
+
+        function initThree() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 60, 80);
+            renderer = new THREE.WebGLRenderer({ canvas: els.canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 20;
+            controls.maxDistance = 200;
+            controls.autoRotate = false;
+            controls.autoRotateSpeed = 0.5;
+            
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const sunLight = new THREE.PointLight(0xffffff, 2, 300);
+            sunLight.position.set(0, 0, 0);
+            sunLight.castShadow = true;
+            scene.add(sunLight);
+
+            const sunGeo = new THREE.SphereGeometry(3, 64, 64);
+            const sunMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            sun = new THREE.Mesh(sunGeo, sunMat);
+            
+            const glow1 = new THREE.Mesh(
+                new THREE.SphereGeometry(4, 32, 32),
+                new THREE.MeshBasicMaterial({ color: 0xff8c00, transparent: true, opacity: 0.4 })
+            );
+            const glow2 = new THREE.Mesh(
+                new THREE.SphereGeometry(5, 32, 32),
+                new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.2 })
+            );
+            sun.add(glow1);
+            sun.add(glow2);
+            
+            sun.userData = { name: 'Sun', type: 'Star', realDistance: '0', orbitalPeriod: 'N/A', diameter: '1.39M km', temperature: '5,500°C', gravity: '274 m/s²', moons: [], rank: 0, description: 'Center of the Solar System.', funFact: 'Contains 99.86% of solar system mass!', color: '#ffd700' };
+            scene.add(sun);
+
+            planetsData.forEach((data, i) => {
+                const orbit = new THREE.Mesh(
+                    new THREE.RingGeometry(data.distance - 0.05, data.distance + 0.05, 128),
+                    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.25 })
+                );
+                orbit.rotation.x = Math.PI / 2;
+                scene.add(orbit);
+                orbits.push(orbit);
+
+                const group = new THREE.Group();
+                scene.add(group);
+                
+                const geo = new THREE.SphereGeometry(data.size, state.resolution, state.resolution);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: data.color,
+                    emissive: data.color,
+                    emissiveIntensity: 0.15,
+                    roughness: 0.7,
+                    metalness: 0.3
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.x = data.distance;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+
+                if(data.hasRings) {
+                    const ring = new THREE.Mesh(
+                        new THREE.RingGeometry(data.size*1.4, data.size*2.2, 64),
+                        new THREE.MeshStandardMaterial({ color: 0xc8b464, side: THREE.DoubleSide, transparent: true, opacity: 0.7 })
+                    );
+                    ring.rotation.x = Math.PI / 2.5;
+                    mesh.add(ring);
+                }
+
+                const moons = [];
+                if(data.moons) {
+                    data.moons.forEach(m => {
+                        const mGroup = new THREE.Group();
+                        mesh.add(mGroup);
+                        moonGroups.push(mGroup);
+                        const mMesh = new THREE.Mesh(
+                            new THREE.SphereGeometry(m.size, 16, 16),
+                            new THREE.MeshStandardMaterial({ color: m.color })
+                        );
+                        mMesh.position.x = m.distance;
+                        mGroup.add(mMesh);
+                        moons.push({ group: mGroup, speed: m.speed, angle: Math.random() * Math.PI * 2 });
+                    });
+                }
+                planets.push({ group, mesh, planetData: data, moons, angle: (i/planetsData.length)*Math.PI*2, speed: data.speed });
+            });
+
+            const asteroidGeo = new THREE.BufferGeometry();
+            const asteroidVertices = [];
+            for(let i = 0; i < 3000; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 28 + Math.random() * 5;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                const y = (Math.random() - 0.5) * 3;
+                asteroidVertices.push(x, y, z);
+            }
+            asteroidGeo.setAttribute('position', new THREE.Float32BufferAttribute(asteroidVertices, 3));
+            asteroidBelt = new THREE.Points(asteroidGeo, new THREE.PointsMaterial({ color: 0x888888, size: 0.3, transparent: true, opacity: 0.7 }));
+            scene.add(asteroidBelt);
+
+            const kuiperGeo = new THREE.BufferGeometry();
+            const kuiperVertices = [];
+            for(let i = 0; i < 4000; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 85 + Math.random() * 35;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                const y = (Math.random() - 0.5) * 8;
+                kuiperVertices.push(x, y, z);
+            }
+            kuiperGeo.setAttribute('position', new THREE.Float32BufferAttribute(kuiperVertices, 3));
+            kuiperBelt = new THREE.Points(kuiperGeo, new THREE.PointsMaterial({ color: 0xa0d8ff, size: 0.25, transparent: true, opacity: 0.5 }));
+            scene.add(kuiperBelt);
+
+            const starsGeo = new THREE.BufferGeometry();
+            starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(Array.from({length: 15000}, () => (Math.random()-0.5)*1000), 3));
+            starsSystem = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.8 }));
+            scene.add(starsSystem);
+
+            els.canvas.addEventListener('mousedown', () => state.lastInteraction = Date.now());
+            els.canvas.addEventListener('touchstart', () => state.lastInteraction = Date.now());
+            controls.addEventListener('change', () => state.lastInteraction = Date.now());
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            els.canvas.addEventListener('click', onClick);
+            els.canvas.addEventListener('mousemove', onMove);
+            els.menuToggle.addEventListener('click', toggleMenu);
+        }
+
+        function onClick(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(scene.children, true);
+            if(hits.length) {
+                let obj = hits[0].object;
+                while(obj && !obj.userData.name) obj = obj.parent;
+                if(obj && obj.userData.name) showInfo(obj.userData);
+            }
+        }
+
+        function onMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(scene.children, true);
+            if(hits.length) {
+                let obj = hits[0].object;
+                while(obj && !obj.userData.name) obj = obj.parent;
+                if(obj && obj.userData.name) {
+                    els.tooltip.textContent = obj.userData.name;
+                    els.tooltip.classList.add('visible');
+                    els.tooltip.style.left = e.clientX + 'px';
+                    els.tooltip.style.top = e.clientY + 'px';
+                    return;
+                }
+            }
+            els.tooltip.classList.remove('visible');
+        }
+
+        function showInfo(data) {
+            els.infoTitle.textContent = data.name;
+            els.infoType.textContent = `Class: ${data.type || 'Planet'}`;
+            els.infoDistance.textContent = data.realDistance;
+            els.infoPeriod.textContent = data.orbitalPeriod;
+            els.infoDiameter.textContent = data.diameter;
+            els.infoTemp.textContent = data.temperature;
+            els.infoMoons.textContent = data.moons ? data.moons.length : 0;
+            els.infoGravity.textContent = data.gravity;
+            els.infoDesc.textContent = data.description;
+            els.funFactText.textContent = data.funFact;
+            els.infoPanel.classList.add('active');
+        }
+
+        function setView(y, btn) {
+            [els.topView, els.tiltView, els.edgeView].forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const start = camera.position.clone();
+            const target = new THREE.Vector3(0, y, 80);
+            const t0 = Date.now();
+            function anim() {
+                const t = Math.min((Date.now() - t0) / 500, 1);
+                const ease = 1 - Math.pow(1-t, 3);
+                camera.position.lerpVectors(start, target, ease);
+                if(t < 1) requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            
+            const timeSinceInteraction = Date.now() - state.lastInteraction;
+            if (state.autoRotate && timeSinceInteraction > 2000) {
+                controls.autoRotate = true;
+            } else {
+                controls.autoRotate = false;
+            }
+            
+            if (state.followingPlanet && !state.isPaused) {
+                const planetPos = new THREE.Vector3();
+                state.followingPlanet.mesh.getWorldPosition(planetPos);
+                controls.target.lerp(planetPos, 0.1);
+                
+                const offset = new THREE.Vector3(15, 10, 15);
+                const targetCamPos = planetPos.clone().add(offset);
+                camera.position.lerp(targetCamPos, 0.05);
+            }
+            
+            if(sun) sun.rotation.y += 0.002 * state.speedMultiplier;
+            
+            if(!state.isPaused) {
+                planets.forEach(p => {
+                    p.angle += 0.005 * p.speed * state.speedMultiplier;
+                    p.group.rotation.y = p.angle;
+                    p.mesh.rotation.y += 0.01 * state.speedMultiplier;
+                    p.moons.forEach(m => {
+                        m.angle += 0.02 * m.speed * state.speedMultiplier;
+                        m.group.rotation.y = m.angle;
+                    });
+                });
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        els.speedRange.addEventListener('input', e => { state.speedMultiplier = parseFloat(e.target.value); els.speedValue.textContent = state.speedMultiplier.toFixed(1) + 'x'; });
+        els.zoomRange.addEventListener('input', e => {
+            const z = parseFloat(e.target.value);
+            els.zoomValue.textContent = Math.round(z*100) + '%';
+            camera.position.set(0, (80/z)*0.7, 80/z);
+        });
+        els.pauseBtn.addEventListener('click', () => {
+            state.isPaused = !state.isPaused;
+            els.pauseBtn.innerHTML = state.isPaused ? '▶' : '⏸';
+            els.pauseBtn.classList.toggle('active', !state.isPaused);
+        });
+        els.orbitToggle.addEventListener('click', () => {
+            state.showOrbits = !state.showOrbits;
+            orbits.forEach(o => o.visible = state.showOrbits);
+            els.orbitToggle.classList.toggle('active', state.showOrbits);
+        });
+        els.moonsToggle.addEventListener('click', () => {
+            state.showMoons = !state.showMoons;
+            moonGroups.forEach(g => g.visible = state.showMoons);
+            els.moonsToggle.classList.toggle('active', state.showMoons);
+        });
+        els.asteroidToggle.addEventListener('click', toggleAsteroidBelt);
+        els.kuiperToggle.addEventListener('click', toggleKuiperBelt);
+        els.starsToggle.addEventListener('click', toggleStars);
+        els.allBeltsBtn.addEventListener('click', toggleAllBelts);
+        els.screenshotBtn.addEventListener('click', () => {
+            els.canvas.toBlob(b => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(b);
+                a.download = `solar-${Date.now()}.png`;
+                a.click();
+                showNotification('Saved!', 'success');
+            });
+        });
+        els.resLow.addEventListener('click', () => setResolution(16, els.resLow));
+        els.resMed.addEventListener('click', () => setResolution(32, els.resMed));
+        els.resHigh.addEventListener('click', () => setResolution(64, els.resHigh));
+        els.topView.addEventListener('click', () => setView(60, els.topView));
+        els.tiltView.addEventListener('click', () => setView(30, els.tiltView));
+        els.edgeView.addEventListener('click', () => setView(1, els.edgeView));
+        els.resetView.addEventListener('click', () => {
+            state.followingPlanet = null;
+            els.zoomRange.value = 1;
+            camera.position.set(0, 60, 80);
+            controls.target.set(0, 0, 0);
+            setView(60, els.topView);
+            showNotification('Reset', 'info');
+        });
+        els.zoomIn.addEventListener('click', () => { els.zoomRange.value = Math.min(parseFloat(els.zoomRange.value)+0.2, 3); els.zoomRange.dispatchEvent(new Event('input')); });
+        els.zoomOut.addEventListener('click', () => { els.zoomRange.value = Math.max(parseFloat(els.zoomRange.value)-0.2, 0.5); els.zoomRange.dispatchEvent(new Event('input')); });
+        els.closeInfo.addEventListener('click', () => els.infoPanel.classList.remove('active'));
+
+        function initLoading() {
+            let p = 0;
+            const logs = ["LOADING...", "SYNCING...", "READY"];
+            let i = 0;
+            const int = setInterval(() => {
+                p += Math.random() * 5;
+                if(p >= 100) {
+                    p = 100;
+                    clearInterval(int);
+                    setTimeout(() => {
+                        els.loadingScreen.classList.add('hidden');
+                        initThree();
+                        animate();
+                        updateTimerDisplay();
+                        createPlanetSelector();
+                        showNotification("System Online", "success");
+                    }, 500);
+                }
+                els.loadingBar.style.width = p + '%';
+                if(p > (i+1)*33 && i < logs.length) els.loadingLog.textContent = logs[i++];
+            }, 100);
+        }
+        initLoading();
+    </script>
+</body>
+</html>
+
